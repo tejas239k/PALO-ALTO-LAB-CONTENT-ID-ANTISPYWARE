@@ -1,0 +1,138 @@
+Content ID/Security Profiles - Anti-Spyware
+
+After Setting up the basic management and client pc with required ip addresses and gateway(if required) and also setting the management interface on palo alto with the below given configuration, we'll move to palo alto GUI.
+
+Palo Alto Management Interface
+configure
+set deviceconfig system type static
+set deviceconfig system ip-address 192.168.10.10 netmask 255.255.255.0
+commit
+exit
+
+Network>Interfaces>ethernet1/1
+Interface Name: ethernet1/1
+Interface Type: Layer3
+Config
+Virtual Router: default
+Security Zone: LAN
+IPv4
+add
+192.168.20.10/24
+Advanced
+Management Profile(New)
+Name: Ping
+HTTP
+HTTPS
+Ping
+ok
+Network>Interfaces>ethernet1/2
+Interface Name: ethernet1/2
+Interface Type: Layer3
+Config
+Virtual Router: default
+Security Zone: Outside
+IPv4
+DHCP Client
+ok
+
+Objects>Tags
+Add
+Name:Lan
+Color:Forest Green
+ok
+Add
+Name:Outside
+Color:Red
+ok
+
+Policies>Security>
+Add
+General
+Name:LAN-to-Outside
+Source
+Source Zone
+Add
+LAN
+Source Address
+Add
+192.168.20.0/24
+Destination
+Destination zone
+Add
+Outside
+ok
+
+Policies>NAT
+Add
+General
+Name: PAT
+Original Packet
+Source Zone
+Add
+LAN
+Destination Zone
+Outside
+Translated Packet
+Source Address Translation
+Translation Type: Dynamic IP And Port
+Address Type: Interface Address
+Interface: ethernet1/2
+IP Address: None
+ok
+COMMIT
+
+This is a normal setup for the client to access the internet which will be similar in most of the labs moving forward.
+
+Go to the client PC and try to access the internet.(SUCCESS!!)
+
+Now to see how the antispyware work in the lab environment we need to create some custom spyware with some signatures and try to make the palo alto firewall block that spyware.
+(This is not how the real world production network works but just for the testing purpose we do it this way)
+
+Lets create a custom spyware
+Objects>Custom Objects>Spyware
+Add
+Configuration
+General
+Threat ID 15001
+Name spytejas
+Properties
+Severity critical
+Direction both
+Default Action drop
+Signatures Standard
+Add
+Standard spytejas
+Add Or Condition
+Operator Pattern Match
+Context http-req-uri-path
+Pattern spytejas
+ok
+
+Now lets move to anti-spyware and block this spyware
+
+Objects>Security Profiles>Anti-Spyware
+Name Anti-Spyware-Profile-spytejas
+Signature Policies
+Add
+Policy Name Anti-Spyware-Policy-spytejas
+Threat Name any
+Category any
+Action Drop
+Secerity any(All severities)
+ok
+
+lets move to the security policy and add the profile setting for Anti-Spyware
+
+Policies>Security>INSIDE-TO-OUTSIDE
+Actions
+Anti-Spyware
+ok
+
+Now before we commit lets go to the client pc and search any url with spytejas as a pattern in the url header and see what happens
+
+www.vulnweb.com/spytejas
+404 Not Found
+
+COMMIT
+
+Now if you just copy the url and past it in the incognito more(cache memory) you'll see Virus/Spyware Download Blocked
